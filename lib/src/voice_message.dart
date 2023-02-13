@@ -8,7 +8,6 @@ import 'package:voice_message_package/src/helpers/utils.dart';
 import './helpers/widgets.dart';
 import './noises.dart';
 import 'duration.dart';
-import 'helpers/colors.dart';
 
 /// This is the main widget.
 ///
@@ -19,18 +18,22 @@ class VoiceMessage extends StatefulWidget {
     required this.audioSrc,
     required this.me,
     this.noiseCount = 27,
-    this.meBgColor = AppColors.pink,
+    this.meBgColor = Colors.white,
     this.contactBgColor = const Color(0xffffffff),
-    this.contactFgColor = AppColors.pink,
+    this.contactFgColor = Colors.blue,
     this.mePlayIconColor = Colors.black,
     this.contactPlayIconColor = Colors.black26,
-    this.meFgColor = const Color(0xffffffff),
+    this.meFgColor = Colors.blue,
     this.played = false,
+    this.padding,
     this.onPlay,
+    this.borderRadius,
   }) : super(key: key);
 
   final String audioSrc;
   final int noiseCount;
+  final EdgeInsetsGeometry? padding;
+  final BorderRadiusGeometry? borderRadius;
   final Color meBgColor,
       meFgColor,
       contactBgColor,
@@ -54,11 +57,25 @@ class _VoiceMessageState extends State<VoiceMessage>
   int _playingStatus = 0, duration = 00;
   String _remaingTime = '';
   AnimationController? _controller;
-
+  late ThemeData newTHeme;
   @override
   void initState() {
     _setDuration();
+
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ThemeData theme = Theme.of(context);
+    newTHeme = theme.copyWith(
+      sliderTheme: SliderThemeData(
+        trackShape: CustomTrackShape(),
+        thumbShape: SliderComponentShape.noThumb,
+        minThumbSeparation: 0,
+      ),
+    );
   }
 
   @override
@@ -66,33 +83,22 @@ class _VoiceMessageState extends State<VoiceMessage>
 
   Container _sizerChild(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: .8.w()),
-      constraints: BoxConstraints(maxWidth: 100.w() * .7),
+      padding: widget.padding,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(6.w()),
-          bottomLeft:
-              widget.me ? Radius.circular(6.w()) : Radius.circular(2.w()),
-          bottomRight:
-              !widget.me ? Radius.circular(6.w()) : Radius.circular(1.2.w()),
-          topRight: Radius.circular(6.w()),
-        ),
+        borderRadius: widget.borderRadius,
         color: widget.me ? widget.meBgColor : widget.contactBgColor,
       ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 4.w(), vertical: 2.8.w()),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _playButton(context),
-            SizedBox(width: 3.w()),
-            _durationWithNoise(context),
-            SizedBox(width: 2.2.w()),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _playButton(context),
+          SizedBox(width: 3.w()),
+          _durationWithNoise(context),
+          SizedBox(width: 2.2.w()),
 
-            /// x2 button will be added here.
-            // _speed(context),
-          ],
-        ),
+          /// x2 button will be added here.
+          // _speed(context),
+        ],
       ),
     );
   }
@@ -110,6 +116,7 @@ class _VoiceMessageState extends State<VoiceMessage>
                 !_audioConfigurationDone ? null : _changePlayingStatus(),
             child: !_audioConfigurationDone
                 ? Container(
+                    color: Colors.transparent,
                     padding: const EdgeInsets.all(8),
                     width: 10,
                     height: 0,
@@ -155,15 +162,6 @@ class _VoiceMessageState extends State<VoiceMessage>
 
   /// Noise widget of audio.
   _noise(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final newTHeme = theme.copyWith(
-      sliderTheme: SliderThemeData(
-        trackShape: CustomTrackShape(),
-        thumbShape: SliderComponentShape.noThumb,
-        minThumbSeparation: 0,
-      ),
-    );
-
     /// document will be added
     return Theme(
       data: newTHeme,
@@ -173,7 +171,11 @@ class _VoiceMessageState extends State<VoiceMessage>
         child: Stack(
           clipBehavior: Clip.hardEdge,
           children: [
-            widget.me ? const Noises() : const ContactNoise(),
+            widget.me
+                ? const Noises(
+                  )
+                : const ContactNoise(
+                  ),
             if (_audioConfigurationDone)
               AnimatedBuilder(
                 animation:
@@ -185,7 +187,7 @@ class _VoiceMessageState extends State<VoiceMessage>
                       width: noiseWidth,
                       height: 6.w(),
                       color: widget.me
-                          ? widget.meBgColor.withOpacity(.4)
+                          ? widget.meBgColor.withOpacity(.6)
                           : widget.contactBgColor.withOpacity(.35),
                     ),
                   );
@@ -195,7 +197,7 @@ class _VoiceMessageState extends State<VoiceMessage>
               opacity: .0,
               child: Container(
                 width: noiseWidth,
-                color: Colors.amber.withOpacity(1),
+                color: Colors.amber.withOpacity(0.1),
                 child: Slider(
                   min: 0.0,
                   max: maxDurationForSlider,
@@ -231,13 +233,14 @@ class _VoiceMessageState extends State<VoiceMessage>
   _setPlayingStatus() => _isPlaying = _playingStatus == 1;
 
   _startPlaying() async {
-    _playingStatus = await _player.play(widget.audioSrc);
+    await _player.play(UrlSource(widget.audioSrc));
+    _playingStatus = 1;
     _setPlayingStatus();
     _controller!.forward();
   }
 
   _stopPlaying() async {
-    _playingStatus = await _player.pause();
+    await _player.pause();
     _controller!.stop();
   }
 
@@ -296,7 +299,7 @@ class _VoiceMessageState extends State<VoiceMessage>
   }
 
   void _listenToRemaningTime() {
-    _player.onAudioPositionChanged.listen((Duration p) {
+    _player.onPositionChanged.listen((Duration p) {
       final _newRemaingTime1 = p.toString().split('.')[0];
       final _newRemaingTime2 =
           _newRemaingTime1.substring(_newRemaingTime1.length - 5);
