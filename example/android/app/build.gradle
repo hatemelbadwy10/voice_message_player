@@ -25,6 +25,8 @@ apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
+    namespace 'xyz.audioplayers'  // Add this line
+
     compileSdkVersion 33
 
     compileOptions {
